@@ -1,22 +1,42 @@
-// src/api/productsapi.js
-import API from "./axios"; // ✅ use configured axios instance
+import API from "./axios"; // pre-configured axios instance
 
-// ✅ Fetch products (optionally filtered by category/subcategory)
-export const getProducts = (category, subcategory) => {
+/* =========================================================
+   ✅ Fetch products with optional filters
+   ========================================================= */
+export const getProducts = ({
+  categoryName = "",
+  subcategoryName = "",
+  search = "",
+  minPrice,
+  maxPrice,
+} = {}) => {
   const params = {};
-  if (category) params.category = category;
-  if (subcategory) params.subcategory = subcategory;
-  return API.get("/products", { params }); // ✅ plural, matches backend
+
+  if (categoryName) params.category = categoryName; // string
+  if (subcategoryName) params.subcategory = subcategoryName;
+  if (search) params.search = search;
+  if (minPrice !== undefined) params.minPrice = minPrice;
+  if (maxPrice !== undefined) params.maxPrice = maxPrice;
+
+  return API.get("/products", { params });
 };
 
-// ✅ Get single product details
+/* =========================================================
+   ✅ Get single product details
+   ========================================================= */
 export const getProductById = (id) => API.get(`/products/${id}`);
 
-// ✅ Add new product (Admin only)
-export const addProduct = (data) => API.post("/products", data);
+/* =========================================================
+   ✅ Add new product (Admin only)
+   ========================================================= */
+export const addProduct = (data, config = {}) => API.post("/products", data, config);
 
-// ✅ Update product (Admin only)
-export const updateProduct = (id, data) => API.put(`/products/${id}`, data);
+/* =========================================================
+   ✅ Update product (Admin only)
+   ========================================================= */
+export const updateProduct = (id, data, config = {}) => API.put(`/products/${id}`, data, config);
 
-// ✅ Delete product (Admin only)
-export const deleteProduct = (id) => API.delete(`/products/${id}`);
+/* =========================================================
+   ✅ Delete product (Admin only)
+   ========================================================= */
+export const deleteProduct = (id, config = {}) => API.delete(`/products/${id}`, config);

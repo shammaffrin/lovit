@@ -4,31 +4,43 @@ import { HiOutlineLocationMarker, HiOutlineMail } from "react-icons/hi";
 
 const CContact = () => {
   return (
-    <div>
-      <div className="bg-gray-300 py-12 sm:py-16 px-4 sm:px-6 md:px-16 flex flex-col md:flex-row justify-around items-center text-center space-y-6 md:space-y-0 md:space-x-0">
-        
-        {/* Location */}
-        <div className="flex flex-col items-center space-y-4 sm:space-y-5">
-          <HiOutlineLocationMarker className="text-3xl sm:text-4xl" />
-          <p className="text-base sm:text-lg pt-2 sm:pt-4">
-            Lovit, Palakunnu, Kasaragod
-          </p>
-        </div>
+  <div className="bg-gray-200 py-10 px-4">
+  <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between text-center gap-8 md:gap-0">
 
-        {/* Phone */}
-        <div className="flex flex-col items-center space-y-4 sm:space-y-5">
-          <FaPhoneAlt className="text-3xl sm:text-4xl" />
-          <p className="text-base sm:text-lg pt-2 sm:pt-4">+91 65472 3989</p>
-        </div>
-
-        {/* Email */}
-        <div className="flex flex-col items-center space-y-4 sm:space-y-5">
-          <HiOutlineMail className="text-3xl sm:text-4xl" />
-          <p className="text-base sm:text-lg pt-2 sm:pt-4">Lovit@gmail.com</p>
-        </div>
-
-      </div>
+    {/* Location */}
+    <div className="flex flex-col items-center space-y-3">
+      <HiOutlineLocationMarker className="text-2xl sm:text-3xl text-black" />
+      <p className="text-gray-800 text-sm sm:text-base font-medium">
+       1st floor City Centre building, <br /> Palakunnu, pincode:671318, <br /> Kasaragod, Kerala, India
+      </p>
     </div>
+
+    {/* Phone */}
+    <div className="flex flex-col items-center space-y-3">
+      <FaPhoneAlt className="text-2xl sm:text-3xl text-black" />
+      <a
+        href="tel:+917994560066"
+        className="text-gray-800 text-sm sm:text-base font-medium hover:text-gray-600"
+      >
+        +91 7994560066
+      </a>
+    </div>
+
+    {/* Email */}
+    <div className="flex flex-col items-center space-y-3">
+      <HiOutlineMail className="text-2xl sm:text-3xl text-black" />
+      <a
+        href="mailto:info@lovit.in"
+        className="text-gray-800 text-sm sm:text-base font-medium hover:text-gray-600"
+      >
+       info@lovit.in
+      </a>
+    </div>
+
+  </div>
+</div>
+
+
   );
 };
 

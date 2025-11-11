@@ -11,7 +11,8 @@ const orderSchema = new mongoose.Schema(
         price: Number,
         quantity: Number,
         color: String,
-        size: String,        // ✅ selected size
+        size: String,   
+        sku: String, // ✅ store product SKU snapshot
       },
     ],
     totalAmount: Number,

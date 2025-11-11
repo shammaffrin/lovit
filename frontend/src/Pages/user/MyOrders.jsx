@@ -18,7 +18,12 @@ const MyOrders = () => {
         }
 
         const res = await getOrders(user._id, token);
-        setOrders(res.data || []);
+        let data = res.data || [];
+
+        // ✅ Sort latest orders first
+        data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        setOrders(data);
       } catch (err) {
         console.error("Failed to fetch orders:", err);
         setOrders([]);
@@ -61,7 +66,7 @@ const MyOrders = () => {
                   <div>
                     <p className="font-medium">{title}</p>
                     <p>₹{item.price}</p>
-                    <p>qty : {item.quantity} </p>
+                    <p>Qty: {item.quantity}</p>
                     <p>{item.color || "-"} / {item.size || "-"}</p>
                   </div>
                 </div>

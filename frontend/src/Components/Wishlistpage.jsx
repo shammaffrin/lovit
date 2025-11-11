@@ -8,21 +8,17 @@ const WishlistPage = () => {
 
   const [wishlistItems, setWishlistItems] = useState([]);
 
-  // ✅ Fetch Wishlist
   useEffect(() => {
     if (!userId) return;
 
     const fetchWishlist = async () => {
       try {
         const res = await getWishlist(userId);
-        console.log("🟢 WISHLIST RESPONSE:", res.data);
-
         const items = Array.isArray(res.data)
           ? res.data
           : Array.isArray(res.data?.wishlist)
           ? res.data.wishlist
           : [];
-
         setWishlistItems(items);
       } catch (err) {
         console.error("❌ Failed to fetch wishlist:", err);
@@ -33,7 +29,6 @@ const WishlistPage = () => {
     fetchWishlist();
   }, [userId]);
 
-  // ✅ Remove item from wishlist
   const handleRemove = async (itemId) => {
     try {
       await removeFromWishlist(userId, itemId);
@@ -43,14 +38,15 @@ const WishlistPage = () => {
     }
   };
 
-  // ✅ Add item to cart (fixed payload structure)
   const handleAddToCart = async (item) => {
-    console.log("🟢 Wishlist item before sending:", item);
+    if (item.stock === 0) {
+      return alert("This product is out of stock. Cannot add to cart.");
+    }
 
     try {
       const productData = {
         productId: item.productId || item._id,
-        title: item.title || item.name || "Untitled Product", // ✅ Fix for missing title
+        title: item.title || item.name || "Untitled Product",
         price: item.price,
         mrp: item.mrp || item.price,
         quantity: 1,
@@ -61,16 +57,13 @@ const WishlistPage = () => {
         },
       };
 
-      console.log("🟢 Sending to backend:", productData);
-
       const res = await addToCart(userId, productData);
-      console.log("✅ Added to cart:", res.data);
 
-      // Remove item from wishlist after adding to cart
+      // Remove from wishlist after adding to cart
       await removeFromWishlist(userId, item._id);
       setWishlistItems((prev) => prev.filter((i) => i._id !== item._id));
 
-      alert("✅ Item added to cart!");
+      alert(res.data.message || "✅ Item added to cart!");
     } catch (err) {
       console.error("❌ Failed to add to cart:", err.response?.data || err);
       alert("Failed to add item to cart.");
@@ -92,12 +85,13 @@ const WishlistPage = () => {
                   ? item.images[0]
                   : item.image;
 
+              const isOutOfStock = item.stock === 0;
+
               return (
                 <div
                   key={item._id}
                   className="bg-white shadow-sm rounded-md overflow-hidden border border-gray-200 hover:shadow-md transition-all"
                 >
-                  {/* ✅ Product Image */}
                   <img
                     src={firstImage}
                     alt={item.title || item.name}
@@ -105,7 +99,6 @@ const WishlistPage = () => {
                     onError={(e) => (e.target.src = "/fallback.jpg")}
                   />
 
-                  {/* ✅ Product Details */}
                   <div className="p-4 flex flex-col justify-between">
                     <h3 className="text-base font-semibold text-black leading-snug mb-2">
                       {item.title || item.name}
@@ -115,7 +108,6 @@ const WishlistPage = () => {
                       {item.description || "No description available"}
                     </p>
 
-                    {/* ✅ Variant Info */}
                     <div className="text-xs text-gray-500 mb-3">
                       {item.size && (
                         <p>
@@ -137,7 +129,6 @@ const WishlistPage = () => {
                       )}
                     </div>
 
-                    {/* ✅ Price Info */}
                     <div className="flex items-center gap-2 mb-4">
                       <span className="text-lg font-bold text-black">
                         ₹{item.price}
@@ -148,22 +139,24 @@ const WishlistPage = () => {
                             ₹{item.mrp}
                           </span>
                           <span className="text-green-600 text-sm font-medium">
-                            {Math.round(
-                              ((item.mrp - item.price) / item.mrp) * 100
-                            )}
-                            % off
+                            {Math.round(((item.mrp - item.price) / item.mrp) * 100)}%
+                            off
                           </span>
                         </>
                       )}
                     </div>
 
-                    {/* ✅ Action Buttons */}
                     <div className="flex gap-3">
                       <button
                         onClick={() => handleAddToCart(item)}
-                        className="w-1/2 py-2 rounded-md text-sm transition-all bg-[#552501] hover:bg-[#3e1b00] text-white"
+                        disabled={isOutOfStock}
+                        className={`w-1/2 py-2 rounded-md text-sm transition-all ${
+                          isOutOfStock
+                            ? "bg-gray-300 cursor-not-allowed text-gray-700"
+                            : "bg-[#552501] hover:bg-[#3e1b00] text-white"
+                        }`}
                       >
-                        ADD TO CART
+                        {isOutOfStock ? "Out of Stock" : "ADD TO CART"}
                       </button>
 
                       <button

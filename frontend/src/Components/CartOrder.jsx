@@ -1,48 +1,81 @@
 import React, { useEffect, useState } from "react";
 import { getCart, removeFromCart, updateCartItem } from "../api/cartapi";
 import { useNavigate } from "react-router-dom";
+import API from "../api/axios";
 
 const CartPage = () => {
   const [cartItems, setCartItems] = useState([]);
+  const [stockData, setStockData] = useState({});
   const user = JSON.parse(localStorage.getItem("user"));
   const userId = user?._id;
   const shipping = 50;
   const navigate = useNavigate();
 
-  // ✅ Fetch cart items
+  // ✅ Fetch cart + live stock data
   useEffect(() => {
     if (!userId) return;
 
-    const fetchCart = async () => {
+    const fetchCartAndStock = async () => {
       try {
         const res = await getCart(userId);
-        setCartItems(res.data || []);
+        const items = res.data || [];
+        setCartItems(items);
+
+        // Fetch all product stock info in parallel for speed
+        const stockInfo = {};
+        await Promise.all(
+          items.map(async (item) => {
+            try {
+              const resProd = await API.get(`/products/${item.productId}`);
+              const product = resProd.data;
+
+              const variant = product.variants.find(
+                (v) =>
+                  v.color?.toLowerCase() ===
+                  item.variant?.color?.toLowerCase()
+              );
+
+              const sizeObj = variant?.sizes?.find(
+                (s) =>
+                  s.size?.toLowerCase() ===
+                  item.variant?.size?.toLowerCase()
+              );
+
+              stockInfo[item._id] = sizeObj ? sizeObj.stock : 0;
+            } catch (err) {
+              console.error("❌ Failed to fetch product stock:", err);
+              stockInfo[item._id] = 0;
+            }
+          })
+        );
+
+        setStockData(stockInfo);
       } catch (err) {
         console.error("❌ Failed to fetch cart:", err);
         setCartItems([]);
       }
     };
 
-    fetchCart();
+    fetchCartAndStock();
   }, [userId]);
 
   // ✅ Remove item from cart
   const handleRemove = async (itemId) => {
     try {
-      await removeFromCart(itemId); // ✅ FIXED (no userId)
+      await removeFromCart(itemId);
       setCartItems((prev) => prev.filter((item) => item._id !== itemId));
     } catch (err) {
       console.error("❌ Failed to remove item:", err);
     }
   };
 
-  // ✅ Update item quantity
-  const handleQtyChange = async (itemId, newQty, stock) => {
-    if (newQty < 1 || (stock && newQty > stock)) return;
+  // ✅ Update item quantity (with stock check)
+  const handleQtyChange = async (itemId, newQty) => {
+    const maxStock = stockData[itemId] ?? Infinity;
+    if (newQty < 1 || newQty > maxStock) return;
 
     try {
-      console.log("🟢 Updating qty:", { itemId, newQty });
-      await updateCartItem(itemId, newQty); // ✅ sends { qty: newQty }
+      await updateCartItem(itemId, newQty);
       setCartItems((prev) =>
         prev.map((item) =>
           item._id === itemId ? { ...item, quantity: newQty } : item
@@ -60,7 +93,6 @@ const CartPage = () => {
         0
       )
     : 0;
-
   const grandTotal = totalPrice + shipping;
 
   return (
@@ -79,6 +111,7 @@ const CartPage = () => {
               const productImage =
                 item.variant?.image ||
                 (Array.isArray(item.images) ? item.images[0] : item.image);
+              const stock = stockData[item._id] ?? item.stock ?? null;
 
               return (
                 <div
@@ -97,13 +130,7 @@ const CartPage = () => {
                   <div className="flex flex-col justify-between w-full">
                     <div>
                       <h3 className="text-base font-semibold">{item.title}</h3>
-                      {item.description && (
-                        <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                          {item.description}
-                        </p>
-                      )}
 
-                      {/* ✅ Variant Info */}
                       <div className="text-xs text-gray-600 mt-2 space-y-1">
                         {item.variant?.size && (
                           <p>
@@ -115,6 +142,21 @@ const CartPage = () => {
                           <p>
                             <span className="font-medium text-black">Color:</span>{" "}
                             {item.variant.color}
+                          </p>
+                        )}
+                        {stock !== null && (
+                          <p
+                            className={`font-medium ${
+                              stock === 0
+                                ? "text-red-500"
+                                : stock <= 5
+                                ? "text-yellow-600"
+                                : "text-green-600"
+                            }`}
+                          >
+                            {stock === 0
+                              ? "Out of Stock"
+                              : `In Stock: ${stock}`}
                           </p>
                         )}
                       </div>
@@ -136,7 +178,7 @@ const CartPage = () => {
                     <div className="mt-2 flex items-center gap-2">
                       <button
                         onClick={() =>
-                          handleQtyChange(item._id, item.quantity - 1, item.stock)
+                          handleQtyChange(item._id, item.quantity - 1)
                         }
                         disabled={item.quantity <= 1}
                         className="px-2 py-1 border rounded disabled:opacity-50"
@@ -146,9 +188,11 @@ const CartPage = () => {
                       <span>{item.quantity}</span>
                       <button
                         onClick={() =>
-                          handleQtyChange(item._id, item.quantity + 1, item.stock)
+                          handleQtyChange(item._id, item.quantity + 1)
                         }
-                        disabled={item.stock ? item.quantity >= item.stock : false}
+                        disabled={
+                          stock !== null ? item.quantity >= stock : false
+                        }
                         className="px-2 py-1 border rounded disabled:opacity-50"
                       >
                         +
@@ -158,7 +202,9 @@ const CartPage = () => {
                     {/* ✅ Actions */}
                     <div className="mt-3 flex gap-4 text-sm text-[#552501] font-medium">
                       <button>Save for later</button>
-                      <button onClick={() => handleRemove(item._id)}>Remove</button>
+                      <button onClick={() => handleRemove(item._id)}>
+                        Remove
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -189,9 +235,13 @@ const CartPage = () => {
           <div className="p-4 border-t border-gray-200">
             <button
               onClick={() => navigate("/checkout")}
-              disabled={cartItems.length === 0}
+              disabled={
+                cartItems.length === 0 ||
+                cartItems.some((item) => (stockData[item._id] ?? 0) === 0)
+              }
               className={`w-full px-5 py-2 rounded-md text-sm transition-all ${
-                cartItems.length === 0
+                cartItems.length === 0 ||
+                cartItems.some((item) => (stockData[item._id] ?? 0) === 0)
                   ? "bg-gray-300 text-gray-600 cursor-not-allowed"
                   : "bg-black text-white hover:bg-[#552501]"
               }`}

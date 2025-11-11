@@ -1,35 +1,45 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import bgImg from "../../assets/bgImg.jpg";
-import API from "../../api/axios";  // Use your Axios instance
-import { useNavigate } from "react-router-dom";
+import API from "../../api/axios";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false); // Toggle password visibility
   const navigate = useNavigate();
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    try {
-      const res =  await API.post("/auth/login", { email, password });
+  const location = useLocation();
 
-      console.log("Login Success:", res.data);
+  // Where to redirect after login (default to home)
+  const from = location.state?.from?.pathname || "/";
 
-      // Store token and user info
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user));
+ const handleLogin = async (e) => {
+  e.preventDefault();
 
-      // Redirect based on user type
-      if (res.data.user.isAdmin) {
-        navigate("/admin");
-      } else {
-        navigate("/"); // Home page
-      }
-    } catch (err) {
-      console.error("Login Failed:", err.response?.data || err.message);
-      alert(err.response?.data?.message || "Login failed");
+  try {
+    const res = await API.post("/auth/login", { email, password });
+    const { token, user } = res.data;
+
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
+
+    console.log("Logged in user:", user); // 👀 check this in console
+
+    // ✅ Redirect logic
+    if (user.isAdmin === true) {
+      navigate("/admin");
+    } else {
+      navigate("/");
     }
-  };
-  
+  } catch (err) {
+    console.error("Login failed:", err.response?.data || err.message);
+    alert(err.response?.data?.message || "Login failed");
+  }
+};
+
+
+
+
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gray-100 py-7">
@@ -69,13 +79,25 @@ const LoginPage = () => {
             <div>
               <label className="block text-gray-700 mb-1">Password</label>
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}  // Toggle visibility
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#552501]"
                 required
               />
+              <div className="flex items-center mt-1">
+                <input
+                  type="checkbox"
+                  checked={showPassword}
+                  onChange={() => setShowPassword(!showPassword)}
+                  className="mr-1"
+                  id="showPassword"
+                />
+                <label htmlFor="showPassword" className="text-gray-500 text-sm cursor-pointer">
+                  Show Password
+                </label>
+              </div>
             </div>
 
             <button

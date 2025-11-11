@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 
 const Footer = () => {
   return (
@@ -9,11 +10,11 @@ const Footer = () => {
         <div>
           <h2 className="font-semibold mb-4">Customer Services</h2>
           <ul className="space-y-2 text-gray-300">
-            <li>Home</li>
-            <li>Shop</li>
-            <li>About us</li>
-            <li>Blog</li>
-            <li>Contact</li>
+            <li> <Link to="/">Home</Link></li>
+            <li><Link to="/shop">Shop</Link></li>
+            <li><Link to="/shop">About Us</Link></li>
+            <li><Link to="/shop">Blog</Link></li>
+            <li><Link to="/contact">Contact</Link></li>
           </ul>
         </div>
 
@@ -21,9 +22,33 @@ const Footer = () => {
         <div>
           <h2 className="font-semibold mb-4">Social Links</h2>
           <ul className="space-y-2 text-gray-300">
-            <li>Facebook</li>
-            <li>Instagram</li>
-            <li>Whatsapp</li>
+            <li>
+    <a
+      href="https://www.facebook.com/YourPage"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Facebook
+    </a>
+  </li>
+  <li>
+    <a
+      href="https://www.instagram.com/Lovit.in"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Instagram
+    </a>
+  </li>
+  <li>
+    <a
+      href="https://wa.me/7994560066"  // WhatsApp direct chat link
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      WhatsApp
+    </a>
+  </li>
           </ul>
         </div>
 
@@ -31,10 +56,18 @@ const Footer = () => {
         <div>
           <h2 className="font-semibold mb-4">Profile</h2>
           <ul className="space-y-2 text-gray-300">
-            <li>My Wishlist</li>
-            <li>Checkout</li>
-            <li>Order Tracking</li>
-            <li>Help & Support</li>
+           <li>
+    <Link to="/wishlist">My Wishlist</Link>
+  </li>
+  <li>
+    <Link to="/checkout">Checkout</Link>
+  </li>
+  <li>
+    <Link to="/order-tracking">Order Tracking</Link>
+  </li>
+  <li>
+    <Link to="/help-support">Help & Support</Link>
+  </li>
           </ul>
         </div>
 
@@ -42,9 +75,21 @@ const Footer = () => {
         <div>
           <h2 className="font-semibold mb-4">Contact Us</h2>
           <ul className="space-y-2 text-gray-300">
-            <li>+762427171</li>
-            <li>lovit@gmail.com</li>
-            <li>Palakkunnu, Kasaragod, Kerala</li>
+            <li>
+    <a href="tel:+917994560066">+91 7994560066</a>
+  </li>
+  <li>
+    <a href="mailto:info@lovit.in">info@lovit.in</a>
+  </li>
+  <li>
+    <a
+      href="https://www.google.com/maps/search/?api=1&query=1st+floor+City+Centre+building+Palakunnu+Kasaragod+Kerala+671318+India"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      1st floor City Centre building, Palakunnu, pincode:671318, Kasaragod, Kerala, India
+    </a>
+  </li>
           </ul>
         </div>
       </div>

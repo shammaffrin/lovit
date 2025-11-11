@@ -1,438 +1,253 @@
 import React, { useState } from "react";
-import API from "../../api/axios";
-
-const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/djwvjlkre/image/upload";
-const CLOUDINARY_PRESET = "lovit_uploads";
+import { addProduct } from "../../api/productsapi";
 
 const AAddProduct = () => {
-  const [formData, setFormData] = useState({
-    category: "",
-    subcategory: "",
-    title: "",
-    description: "",
-    mainImage: "",
-  });
-
-  const [categories, setCategories] = useState([
-    "Men",
-    "Women",
-    "Kids",
-    "Accessories",
-  ]);
-
-  const [sizesList, setSizesList] = useState(["S", "M", "L", "XL"]);
-
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("");
+  const [subcategory, setSubcategory] = useState("");
+  const [mainImage, setMainImage] = useState("");
   const [variants, setVariants] = useState([
-    { color: "", price: "", images: [], sizes: [{ size: "", stock: "" }] },
+    { color: "", price: "", sizes: [{ size: "", stock: "" }], images: [] },
   ]);
+  const [uploading, setUploading] = useState(false);
 
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  // Upload image to Cloudinary
+  const uploadImage = async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "lovit_uploads");
+    formData.append("cloud_name", "djwvjlkre");
 
-  // ----------------------------
-  // HANDLERS
-  // ----------------------------
-  const handleChange = (e) =>
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    try {
+      setUploading(true);
+      const res = await fetch(
+        "https://api.cloudinary.com/v1_1/djwvjlkre/image/upload",
+        { method: "POST", body: formData }
+      );
+      const data = await res.json();
+      setUploading(false);
+      return data.secure_url;
+    } catch {
+      setUploading(false);
+      alert("Image upload failed");
+      return null;
+    }
+  };
 
-  const handleVariantChange = (i, e) => {
+  const handleMainImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const url = await uploadImage(file);
+    if (url) setMainImage(url);
+  };
+
+  const handleVariantImageUpload = async (i, files) => {
+    const uploaded = [];
+    for (let file of files) {
+      const url = await uploadImage(file);
+      if (url) uploaded.push(url);
+    }
     const updated = [...variants];
-    updated[i][e.target.name] = e.target.value;
+    updated[i].images.push(...uploaded);
     setVariants(updated);
   };
 
-  const handleSizeChange = (variantIndex, sizeIndex, e) => {
-    const updated = [...variants];
-    updated[variantIndex].sizes[sizeIndex][e.target.name] = e.target.value;
-    setVariants(updated);
+  const handleAddVariant = () => {
+    setVariants([
+      ...variants,
+      { color: "", price: "", sizes: [{ size: "", stock: "" }], images: [] },
+    ]);
   };
 
-  const addSize = (variantIndex) => {
+  const handleAddSize = (variantIndex) => {
     const updated = [...variants];
     updated[variantIndex].sizes.push({ size: "", stock: "" });
     setVariants(updated);
   };
 
-  const removeSize = (variantIndex, sizeIndex) => {
-    const updated = [...variants];
-    updated[variantIndex].sizes.splice(sizeIndex, 1);
-    setVariants(updated);
-  };
-
-  const addVariant = () =>
-    setVariants([
-      ...variants,
-      { color: "", price: "", images: [], sizes: [{ size: "", stock: "" }] },
-    ]);
-
-  const removeVariant = (i) =>
-    setVariants(variants.filter((_, idx) => idx !== i));
-
-  // ----------------------------
-  // CLOUDINARY UPLOAD
-  // ----------------------------
-  const uploadToCloudinary = async (file) => {
-    const data = new FormData();
-    data.append("file", file);
-    data.append("upload_preset", CLOUDINARY_PRESET);
-
-    const res = await fetch(CLOUDINARY_URL, { method: "POST", body: data });
-    const result = await res.json();
-
-    if (result.secure_url) return result.secure_url;
-    throw new Error(result.error?.message || "Upload failed");
-  };
-
-  const handleMainImageUpload = async (file) => {
-    try {
-      setLoading(true);
-      setMessage("Uploading main image...");
-      const url = await uploadToCloudinary(file);
-      setFormData((prev) => ({ ...prev, mainImage: url }));
-      setMessage("✅ Main image uploaded!");
-    } catch (err) {
-      console.error(err);
-      setMessage("❌ Main image upload failed.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVariantImagesUpload = async (variantIndex, files) => {
-    const updated = [...variants];
-    setLoading(true);
-    setMessage("Uploading variant images...");
-
-    try {
-      const uploaded = [];
-      for (const file of files) {
-        const url = await uploadToCloudinary(file);
-        uploaded.push(url);
-      }
-
-      updated[variantIndex].images = [
-        ...(updated[variantIndex].images || []),
-        ...uploaded,
-      ];
-
-      setVariants(updated);
-      setMessage("✅ Variant images uploaded successfully!");
-    } catch (err) {
-      console.error("Image upload error:", err);
-      setMessage("❌ Failed to upload variant images.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const removeVariantImage = (variantIndex, imageIndex) => {
-    const updated = [...variants];
-    updated[variantIndex].images.splice(imageIndex, 1);
-    setVariants(updated);
-  };
-
-  // ----------------------------
-  // CATEGORY / SIZE ADD
-  // ----------------------------
-  const addNewCategory = () => {
-    const newCat = prompt("Enter new category name:");
-    if (newCat && !categories.includes(newCat)) {
-      setCategories([...categories, newCat]);
-      setFormData({ ...formData, category: newCat });
-    }
-  };
-
-  const addNewSize = () => {
-    const newSize = prompt("Enter new size (e.g., XXL):");
-    if (newSize && !sizesList.includes(newSize)) {
-      setSizesList([...sizesList, newSize]);
-    }
-  };
-
-  // ----------------------------
-  // SUBMIT PRODUCT
-  // ----------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage("");
+    if (!title || !category || !mainImage) return alert("Please fill required fields");
+
+    const cleanedVariants = variants
+      .map((v) => ({
+        color: v.color,
+        price: Number(v.price),
+        images: v.images,
+        sizes: v.sizes
+          .filter((s) => s.size && s.stock)
+          .map((s) => ({ size: s.size, stock: Number(s.stock) })),
+      }))
+      .filter((v) => v.color && v.price && v.sizes.length > 0);
+
+    const productData = {
+      title,
+      description,
+      category,
+      subcategory: subcategory || "",
+      mainImage,
+      variants: cleanedVariants,
+    };
 
     try {
-      const token = localStorage.getItem("token");
-      const config = token
-        ? { headers: { Authorization: `Bearer ${token}` } }
-        : {};
-
-      const cleanedVariants = variants.map((v) => ({
-        ...v,
-        price: Number(v.price),
-        sizes: v.sizes.map((s) => ({
-          size: s.size,
-          stock: Number(s.stock),
-        })),
-      }));
-
-      const productData = { ...formData, variants: cleanedVariants };
-
-      const res = await API.post("/products", productData, config);
-      setMessage("✅ Product added successfully!");
-      console.log("Response:", res.data);
-
-      // reset
-      setFormData({
-        category: "",
-        subcategory: "",
-        title: "",
-        description: "",
-        mainImage: "",
-      });
-      setVariants([
-        { color: "", price: "", images: [], sizes: [{ size: "", stock: "" }] },
-      ]);
+      await addProduct(productData);
+      alert("✅ Product added successfully!");
+      resetForm();
     } catch (err) {
-      console.error("❌ Error adding product:", err.response?.data || err);
-      setMessage("❌ Failed to add product.");
-    } finally {
-      setLoading(false);
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to add product");
     }
   };
 
-  // ----------------------------
-  // UI
-  // ----------------------------
+  const resetForm = () => {
+    setTitle("");
+    setDescription("");
+    setCategory("");
+    setSubcategory("");
+    setMainImage("");
+    setVariants([{ color: "", price: "", sizes: [{ size: "", stock: "" }], images: [] }]);
+  };
+
   return (
-    <div className="font-[Poppins] px-3 sm:px-6 py-6 sm:py-10 bg-gray-50 min-h-screen">
-      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-md p-6 sm:p-8">
-        <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center text-gray-800">
-          Add Product
-        </h2>
+    <div className="p-6 bg-white rounded-lg shadow max-w-5xl mx-auto">
+      <h2 className="text-2xl font-semibold mb-4">Add New Product</h2>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          {/* CATEGORY */}
-          <div className="flex gap-2">
-            <select
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              className="border p-3 rounded w-full"
-            >
-              <option value="">Select Category</option>
-              {categories.map((cat, idx) => (
-                <option key={idx} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={addNewCategory}
-              className="bg-blue-600 text-white px-4 rounded hover:bg-blue-700 transition"
-            >
-              + Add
-            </button>
-          </div>
+      {/* Title & Description */}
+      <input
+        type="text"
+        placeholder="Product Title"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        className="border p-2 rounded w-full mb-3"
+      />
+      <textarea
+        placeholder="Description"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        className="border p-2 rounded w-full mb-4"
+      />
 
-          <input
-            name="subcategory"
-            value={formData.subcategory}
-            onChange={handleChange}
-            placeholder="Subcategory"
-            className="border p-3 rounded w-full"
-          />
-
-          <input
-            name="title"
-            value={formData.title}
-            onChange={handleChange}
-            placeholder="Product Title"
-            className="border p-3 rounded w-full"
-          />
-
-          <textarea
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            placeholder="Description"
-            className="border p-3 rounded w-full"
-          />
-
-          {/* MAIN IMAGE */}
-          <div>
-            <label className="font-medium text-gray-700">
-              Main Product Image:
-            </label>
-            <input
-              type="file"
-              onChange={(e) => handleMainImageUpload(e.target.files[0])}
-              className="border p-2 w-full rounded mt-2"
-            />
-            {formData.mainImage && (
-              <img
-                src={formData.mainImage}
-                alt="main"
-                className="w-32 h-32 mt-3 rounded-lg object-cover border"
-              />
-            )}
-          </div>
-
-          {/* VARIANTS */}
-          {variants.map((variant, i) => (
-            <div
-              key={i}
-              className="border-2 border-blue-100 rounded-xl p-4 bg-blue-50/30 shadow-sm flex flex-col gap-4"
-            >
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input
-                  name="color"
-                  value={variant.color}
-                  onChange={(e) => handleVariantChange(i, e)}
-                  placeholder="Color"
-                  className="border p-2 rounded"
-                />
-                <input
-                  name="price"
-                  type="number"
-                  value={variant.price}
-                  onChange={(e) => handleVariantChange(i, e)}
-                  placeholder="Price"
-                  className="border p-2 rounded"
-                />
-              </div>
-
-              {/* VARIANT IMAGES */}
-              <div>
-                <label className="text-sm font-medium text-gray-700">
-                  Variant Images:
-                </label>
-                <input
-                  type="file"
-                  multiple
-                  onChange={(e) =>
-                    handleVariantImagesUpload(i, e.target.files)
-                  }
-                  className="border p-2 w-full rounded mt-1"
-                />
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {variant.images.map((img, idx) => (
-                    <div key={idx} className="relative group">
-                      <img
-                        src={img}
-                        alt="preview"
-                        className="w-16 h-16 rounded-lg object-cover border shadow-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeVariantImage(i, idx)}
-                        className="absolute top-0 right-0 bg-red-600 text-white text-xs px-1 rounded opacity-0 group-hover:opacity-100 transition"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* SIZES */}
-              <div>
-                <h4 className="text-sm font-semibold text-gray-800 mt-2">
-                  Sizes
-                </h4>
-                {variant.sizes.map((sizeObj, si) => (
-                  <div key={si} className="flex gap-2 mb-2">
-                    <select
-                      name="size"
-                      value={sizeObj.size}
-                      onChange={(e) => handleSizeChange(i, si, e)}
-                      className="border p-2 rounded w-1/2"
-                    >
-                      <option value="">Select Size</option>
-                      {sizesList.map((s, idx) => (
-                        <option key={idx} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      name="stock"
-                      type="number"
-                      value={sizeObj.stock}
-                      onChange={(e) => handleSizeChange(i, si, e)}
-                      placeholder="Stock"
-                      className="border p-2 rounded w-1/2"
-                    />
-                    {variant.sizes.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeSize(i, si)}
-                        className="bg-red-500 text-white text-xs px-2 py-1 rounded hover:bg-red-600 transition"
-                      >
-                        x
-                      </button>
-                    )}
-                  </div>
-                ))}
-
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => addSize(i)}
-                    className="bg-blue-500 text-white text-xs px-3 py-1 rounded hover:bg-blue-600 transition"
-                  >
-                    + Add Size
-                  </button>
-                  <button
-                    type="button"
-                    onClick={addNewSize}
-                    className="bg-green-500 text-white text-xs px-3 py-1 rounded hover:bg-green-600 transition"
-                  >
-                    + New Size Option
-                  </button>
-                </div>
-              </div>
-
-              {variants.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeVariant(i)}
-                  className="bg-red-500 text-white text-xs px-3 py-1 rounded self-end hover:bg-red-600 transition"
-                >
-                  Remove Variant
-                </button>
-              )}
-            </div>
-          ))}
-
-          <button
-            type="button"
-            onClick={addVariant}
-            className="text-blue-600 hover:underline text-sm mt-2"
-          >
-            + Add Another Color Variant
-          </button>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 disabled:opacity-50 transition"
-          >
-            {loading ? "Adding..." : "Add Product"}
-          </button>
-
-          {message && (
-            <p
-              className={`text-center mt-3 ${
-                message.includes("✅")
-                  ? "text-green-600"
-                  : message.includes("❌")
-                  ? "text-red-500"
-                  : "text-gray-600"
-              }`}
-            >
-              {message}
-            </p>
-          )}
-        </form>
+      {/* Category & Subcategory */}
+      <div className="flex gap-2 mb-4">
+        <input
+          type="text"
+          placeholder="Category"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="border p-2 rounded w-1/2"
+        />
+        <input
+          type="text"
+          placeholder="Subcategory"
+          value={subcategory}
+          onChange={(e) => setSubcategory(e.target.value)}
+          className="border p-2 rounded w-1/2"
+        />
       </div>
+
+      {/* Main Image */}
+      <div className="mb-4">
+        <label className="font-medium">Main Image:</label>
+        <input type="file" accept="image/*" onChange={handleMainImageUpload} className="block mt-2" />
+        {uploading && <p className="text-sm text-gray-500">Uploading...</p>}
+        {mainImage && <img src={mainImage} alt="Main" className="w-40 h-40 object-cover mt-2 rounded" />}
+      </div>
+
+      {/* Variants */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Variants</h3>
+        {variants.map((variant, i) => (
+          <div key={i} className="border p-4 rounded-lg">
+            <input
+              type="text"
+              placeholder="Color"
+              value={variant.color}
+              onChange={(e) => {
+                const updated = [...variants];
+                updated[i].color = e.target.value;
+                setVariants(updated);
+              }}
+              className="border p-2 rounded w-full mb-2"
+            />
+            <input
+              type="number"
+              placeholder="Price"
+              value={variant.price}
+              onChange={(e) => {
+                const updated = [...variants];
+                updated[i].price = e.target.value;
+                setVariants(updated);
+              }}
+              className="border p-2 rounded w-full mb-2"
+            />
+
+            {/* Sizes */}
+            <div>
+              {variant.sizes.map((s, idx) => (
+                <div key={idx} className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    placeholder="Size"
+                    value={s.size}
+                    onChange={(e) => {
+                      const updated = [...variants];
+                      updated[i].sizes[idx].size = e.target.value;
+                      setVariants(updated);
+                    }}
+                    className="border p-2 rounded w-full"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Stock"
+                    value={s.stock}
+                    onChange={(e) => {
+                      const updated = [...variants];
+                      updated[i].sizes[idx].stock = e.target.value;
+                      setVariants(updated);
+                    }}
+                    className="border p-2 rounded w-full"
+                  />
+                </div>
+              ))}
+              <button
+                onClick={() => handleAddSize(i)}
+                className="text-sm bg-gray-200 px-2 py-1 rounded"
+              >
+                + Add Size
+              </button>
+            </div>
+
+            {/* Variant Images */}
+            <div className="mt-3">
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={(e) => handleVariantImageUpload(i, e.target.files)}
+              />
+              <div className="flex gap-2 mt-2">
+                {variant.images.map((img, j) => (
+                  <img key={j} src={img} alt="" className="w-20 h-20 object-cover rounded" />
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+        <button
+          onClick={handleAddVariant}
+          className="bg-gray-300 text-black px-3 py-1 rounded"
+        >
+          + Add Variant
+        </button>
+      </div>
+
+      <button
+        onClick={handleSubmit}
+        className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 mt-6"
+      >
+        Add Product
+      </button>
     </div>
   );
 };

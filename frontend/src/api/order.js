@@ -14,3 +14,13 @@ export const getAllOrders = (token) =>
   API.get("/orders", {
     headers: { Authorization: `Bearer ${token}` },
   });
+
+// ✅ Update order status (Admin)
+export const updateOrderStatus = (orderId, status, token) =>
+  API.put(
+    `/orders/${orderId}/status`,
+    { status },
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );

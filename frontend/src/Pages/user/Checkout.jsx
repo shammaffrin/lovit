@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { placeOrder } from "../../api/order";
-import { getCart, clearUserCart } from "../../api/cartapi"; // ✅ make sure clearUserCart is added in your API
+import { getCart, updateCartItem, clearUserCart } from "../../api/cartapi";
+import API from "../../api/axios"; // ✅ make sure you have this axios instance
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [items, setItems] = useState([]);
   const [user, setUser] = useState(null);
-
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cod");
-
   const [billing, setBilling] = useState({
     name: "",
     address: "",
@@ -19,113 +19,189 @@ export default function CheckoutPage() {
     state: "",
     zipCode: "",
   });
-
   const [sameAsBilling, setSameAsBilling] = useState(true);
+  const [stockInfo, setStockInfo] = useState({}); // ✅ new state
 
-  // ✅ Fetch user + cart on load
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user"));
     setUser(storedUser);
 
-    if (storedUser?._id) {
+    if (location.state?.cartItems) {
+      setItems(location.state.cartItems);
+      fetchStock(location.state.cartItems);
+    } else if (storedUser?._id) {
       fetchCart(storedUser._id);
     }
-  }, []);
+  }, [location.state]);
 
   const fetchCart = async (userId) => {
     try {
       const res = await getCart(userId);
       const data = Array.isArray(res.data) ? res.data : [];
       setItems(data);
+      fetchStock(data);
     } catch (err) {
       console.error("Failed to load cart:", err);
       setItems([]);
     }
   };
 
-  const total = items.reduce((sum, i) => sum + i.price * (i.qty || 1), 0);
+  // ✅ Fetch stock details for each item
+  const fetchStock = async (cartItems) => {
+    try {
+      const stockData = {};
+      await Promise.all(
+        cartItems.map(async (item) => {
+          const productId = item.productId || item._id;
+          const res = await API.get(`/products/${productId}`);
+          const product = res.data;
 
-  const handlePlaceOrder = async () => {
-  if (!billing.name || !billing.address || !billing.city || !billing.state) {
-    alert("Please fill all billing details!");
-    return;
-  }
+          // Match variant color (case-insensitive)
+          const variant = product.variants.find(
+            (v) => v.color?.toLowerCase() === item.variant?.color?.toLowerCase()
+          );
 
-  if (!items.length) {
-    alert("Your cart is empty!");
-    return;
-  }
+          // Match size (case-insensitive)
+          const sizeObj = variant?.sizes?.find(
+            (s) => s.size?.toLowerCase() === item.variant?.size?.toLowerCase()
+          );
 
-  if (!user?._id) {
-    alert("User not found. Please log in again.");
-    return;
-  }
+          stockData[item._id] = sizeObj?.stock ?? 0;
+        })
+      );
+      setStockInfo(stockData);
+    } catch (err) {
+      console.error("Failed to fetch stock info:", err);
+    }
+  };
 
-  const shippingAddress = sameAsBilling
-    ? billing
-    : {
-        name: billing.name,
-        address: billing.address,
-        city: billing.city,
-        state: billing.state,
-        zipCode: billing.zipCode,
-      };
+  const handleQtyChange = async (itemId, qty) => {
+    const newQty = Number(qty);
+    if (newQty < 1) return;
 
-  const totalAmount = items.reduce(
-    (sum, i) => sum + (i.price || 0) * (i.qty || 1),
+    const availableStock = stockInfo[itemId] ?? 0;
+    if (newQty > availableStock) {
+      alert(`Only ${availableStock} left in stock!`);
+      return;
+    }
+
+    setItems((prev) =>
+      prev.map((item) =>
+        item._id === itemId ? { ...item, quantity: newQty } : item
+      )
+    );
+
+    try {
+      if (user?._id) await updateCartItem(itemId, newQty);
+    } catch (err) {
+      console.error("Failed to update cart:", err);
+    }
+  };
+
+  const handleRemoveItem = async (itemId) => {
+    setItems((prev) => prev.filter((item) => item._id !== itemId));
+    try {
+      if (user?._id) await updateCartItem(itemId, 0);
+    } catch (err) {
+      console.error("Failed to remove item:", err);
+    }
+  };
+
+  const total = items.reduce(
+    (sum, i) => sum + (i.price || 0) * (i.quantity || 1),
     0
   );
 
-  const orderData = {
-    userId: user._id,
-    items: items.map((item) => ({
-      productId: item.productId || item._id,          // actual product ID
-      title: item.title || item.name || "Unknown Product", // product name
-      price: item.price || 0,
-       color: item.variant?.color || item.color || "Default", // pick variant first
-    size: item.variant?.size || item.size || "N/A",        // pick variant first
-      image: item.variant?.image || item.mainImage || item.image || "",
-      quantity:item.variant?.quantity || item.qty || 1,
-    })),
-    shippingAddress,
-    paymentMethod,
-    totalAmount,
+  const handlePlaceOrder = async () => {
+    if (!billing.name || !billing.address || !billing.city || !billing.state) {
+      alert("Please fill all billing details!");
+      return;
+    }
+
+    if (!items.length) {
+      alert("Your cart is empty!");
+      return;
+    }
+
+    // ✅ Check stock before placing order
+    for (let item of items) {
+      const available = stockInfo[item._id] ?? 0;
+      if (item.quantity > available) {
+        alert(`Not enough stock for ${item.title}. Available: ${available}`);
+        return;
+      }
+    }
+
+    const shippingAddress = sameAsBilling ? billing : { ...billing };
+
+    const orderData = {
+      userId: user._id,
+      items: items.map((item) => ({
+        productId: item.productId || item._id,
+        title: item.title || item.name || "Unknown Product",
+        price: item.price || 0,
+        color: item.variant?.color || item.color || "Default",
+        size: item.variant?.size || item.size || "N/A",
+        image: item.variant?.images?.[0] || item.mainImage || item.image || "",
+        quantity: item.quantity || 1,
+      })),
+      shippingAddress,
+      paymentMethod,
+      totalAmount: total,
+    };
+
+    try {
+      setLoading(true);
+      const res = await placeOrder(orderData);
+      await clearUserCart(user._id);
+      setItems([]);
+
+      const toast = document.createElement("div");
+      toast.innerHTML = `
+        <div class="flex flex-col items-center justify-center text-center gap-3 p-8 bg-white rounded-2xl shadow-2xl border border-gray-200 animate-popup">
+          <div class="text-5xl">🎉</div>
+          <h2 class="text-xl font-semibold text-gray-800">Order placed successfully!</h2>
+          <p class="text-sm text-gray-500">Redirecting to your order details...</p>
+        </div>
+      `;
+      toast.className =
+        "fixed inset-0 flex items-center justify-center z-[9999] bg-black/30 backdrop-blur-sm";
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        document.body.removeChild(toast);
+        navigate(`/order-success/${res.data?.order?._id || ""}`);
+      }, 2500);
+    } catch (err) {
+      console.error("❌ Order Error:", err.response?.data || err);
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        "Failed to place order. Please try again!";
+      alert(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  try {
-    setLoading(true);
-
-    // ✅ Place order
-    const res = await placeOrder(orderData);
-
-    alert("🎉 Order placed successfully!");
-
-    // ✅ Clear cart both backend + frontend
-    await clearUserCart(user._id);
-    setItems([]);
-
-    navigate(`/order-success/${res.data?.order?._id || ""}`);
-  } catch (err) {
-    console.error("Failed to place order:", err);
-    alert("Failed to place order. Please try again!");
-  } finally {
-    setLoading(false);
-  }
-};
-
-
   return (
-    <div className="max-w-md mx-auto mt-10 px-6 font-sans">
-      {/* Heading */}
-      <h2 className="text-2xl font-semibold mb-8 text-black">Checkout</h2>
+    <div className="px-4 sm:px-6 md:px-10 lg:px-20 py-10 font-sans max-w-5xl mx-auto">
+      <h2 className="text-2xl font-semibold mb-8 text-black text-center sm:text-left">
+        Checkout
+      </h2>
 
-      {/* Step progress bar */}
-      <div className="flex items-center justify-between mb-10 relative">
+      {/* Stepper */}
+      <div className="flex flex-col sm:flex-row items-center justify-between mb-10 relative">
         {["Billing", "Payment", "Confirmation"].map((label, index) => (
-          <div key={index} className="flex flex-col items-center flex-1 relative">
+          <div
+            key={index}
+            className="flex flex-col items-center flex-1 relative mb-4 sm:mb-0"
+          >
             <div
-              className={`w-3.5 h-3.5 rounded-full border-2 z-10 ${
-                step >= index + 1 ? "border-black bg-black" : "border-gray-300 bg-white"
+              className={`w-4 h-4 rounded-full border-2 z-10 ${
+                step >= index + 1
+                  ? "border-black bg-black"
+                  : "border-gray-300 bg-white"
               }`}
             ></div>
             <p
@@ -137,7 +213,7 @@ export default function CheckoutPage() {
             </p>
             {index < 2 && (
               <div
-                className={`absolute top-[6px] right-[-50%] w-full h-[2px] ${
+                className={`absolute top-1 sm:top-2 right-[-50%] w-full h-[2px] ${
                   step > index + 1 ? "bg-black" : "bg-gray-300"
                 }`}
               ></div>
@@ -161,9 +237,11 @@ export default function CheckoutPage() {
             placeholder="Address"
             className="w-full border-b border-gray-300 outline-none py-2 text-sm"
             value={billing.address}
-            onChange={(e) => setBilling({ ...billing, address: e.target.value })}
+            onChange={(e) =>
+              setBilling({ ...billing, address: e.target.value })
+            }
           />
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
               placeholder="City"
@@ -176,7 +254,9 @@ export default function CheckoutPage() {
               placeholder="State"
               className="flex-1 border-b border-gray-300 outline-none py-2 text-sm"
               value={billing.state}
-              onChange={(e) => setBilling({ ...billing, state: e.target.value })}
+              onChange={(e) =>
+                setBilling({ ...billing, state: e.target.value })
+              }
             />
           </div>
           <input
@@ -184,9 +264,10 @@ export default function CheckoutPage() {
             placeholder="Zip Code"
             className="w-full border-b border-gray-300 outline-none py-2 text-sm"
             value={billing.zipCode}
-            onChange={(e) => setBilling({ ...billing, zipCode: e.target.value })}
+            onChange={(e) =>
+              setBilling({ ...billing, zipCode: e.target.value })
+            }
           />
-
           <label className="flex items-center gap-2 text-sm text-gray-600 mt-2">
             <input
               type="checkbox"
@@ -196,7 +277,6 @@ export default function CheckoutPage() {
             />
             Shipping Address same as billing
           </label>
-
           <button
             onClick={() => setStep(2)}
             className="bg-black text-white px-6 py-2 text-sm rounded-md float-right"
@@ -206,11 +286,11 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      {/* Step 2 - Payment */}
       {step === 2 && (
         <div className="space-y-5">
           <h3 className="font-medium text-lg">Payment Method</h3>
 
+          {/* Cash on Delivery Option */}
           <label className="flex items-center gap-2 text-sm">
             <input
               type="radio"
@@ -222,28 +302,68 @@ export default function CheckoutPage() {
             Cash on Delivery
           </label>
 
-          <label className="flex items-center gap-2 text-sm opacity-60">
-            <input
-              type="radio"
-              name="payment"
-              checked={paymentMethod === "card"}
-              onChange={() => setPaymentMethod("card")}
-              className="accent-black"
-              disabled
-            />
-            Pay Online (Coming Soon)
-          </label>
+          {/* ✅ WhatsApp Contact Option */}
+          <button
+            onClick={() => {
+              if (
+                !billing.name ||
+                !billing.address ||
+                !billing.city ||
+                !billing.state
+              ) {
+                alert(
+                  "Please fill billing details before contacting on WhatsApp!"
+                );
+                return;
+              }
 
-          <div className="flex justify-between mt-5">
+              // Prepare simplified order text
+              const orderPreview = items
+                .map(
+                  (item) =>
+                    `${item.title || item.name} ${item.sku} (${
+                      item.variant?.size || item.size || "Free Size"
+                    }, ${item.variant?.color || item.color || "Default"}) x${
+                      item.quantity || 1
+                    } - ₹${item.price * (item.quantity || 1)}`
+                )
+                .join("\n");
+
+              const total = items.reduce(
+                (sum, i) => sum + (i.price || 0) * (i.quantity || 1),
+                0
+              );
+
+              const message = encodeURIComponent(
+                `Hello, I would like to place an order!\n\n🧾 *Order Details:*\n${orderPreview}\n\n💰 *Total:* ₹${total}\n📦 *Shipping Address:*\n${billing.name}\n${billing.address}\n${billing.city}, ${billing.state} - ${billing.zipCode}\n\nPlease confirm the order.`
+              );
+
+              // Replace with your WhatsApp number (with country code, no + or spaces)
+              const phoneNumber = "917994560066"; // Example: India number
+              const whatsappURL = `https://wa.me/${phoneNumber}?text=${message}`;
+              window.open(whatsappURL, "_blank");
+            }}
+            className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm px-6 py-2 rounded-md transition w-full sm:w-auto"
+          >
+            <img
+              src="https://cdn-icons-png.flaticon.com/512/733/733585.png"
+              alt="WhatsApp"
+              className="w-4 h-4"
+            />
+            Contact on WhatsApp
+          </button>
+
+          {/* Navigation Buttons */}
+          <div className="flex justify-between mt-5 flex-col sm:flex-row gap-2">
             <button
               onClick={() => setStep(1)}
-              className="bg-gray-200 text-sm px-6 py-2 rounded-md"
+              className="bg-gray-200 text-sm px-6 py-2 rounded-md w-full sm:w-auto"
             >
               Back
             </button>
             <button
               onClick={() => setStep(3)}
-              className="bg-black text-white text-sm px-6 py-2 rounded-md"
+              className="bg-black text-white text-sm px-6 py-2 rounded-md w-full sm:w-auto"
             >
               Next
             </button>
@@ -256,37 +376,57 @@ export default function CheckoutPage() {
         <div className="space-y-5">
           <h3 className="font-medium text-lg">Order Confirmation</h3>
 
-          <div className="text-sm text-gray-700 space-y-1">
-            <p><strong>Name:</strong> {billing.name}</p>
-            <p><strong>Address:</strong> {billing.address}</p>
-            <p><strong>City/State:</strong> {billing.city}, {billing.state}</p>
-            <p><strong>Zip:</strong> {billing.zipCode}</p>
-            <p><strong>Payment:</strong> {paymentMethod.toUpperCase()}</p>
-            <p><strong>Total:</strong> ₹{total}</p>
+          {/* Items with stock info */}
+          <div className="mt-4 border-t pt-3 space-y-2">
+            {items.map((item) => {
+              const available = stockInfo[item._id] ?? 0;
+              return (
+                <div
+                  key={item._id}
+                  className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b py-1 text-xs text-gray-600 gap-2"
+                >
+                  <div>
+                    {item.title || item.name} ({item.size || "Free Size"},{" "}
+                    {item.color || "Default"})
+                    <span
+                      className={`ml-2 text-[11px] ${
+                        available > 0 ? "text-green-600" : "text-red-600"
+                      }`}
+                    >
+                      {available > 0
+                        ? `In Stock: ${available}`
+                        : "Out of Stock"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={item.quantity || 1}
+                      min={1}
+                      max={available || 1}
+                      onChange={(e) =>
+                        handleQtyChange(item._id, e.target.value)
+                      }
+                      className="w-12 border px-1 text-xs"
+                    />
+                    <span>₹{item.price * (item.quantity || 1)}</span>
+                    <button
+                      onClick={() => handleRemoveItem(item._id)}
+                      className="text-red-600 text-xs"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* show summary of items */}
-          <div className="mt-4 border-t pt-3">
-            <h4 className="text-sm font-semibold mb-2">Items:</h4>
-            {items.map((item) => (
-              <div
-                key={item._id}
-                className="text-xs text-gray-600 flex justify-between border-b py-1"
-              >
-                <span>
-                  {item.title || item.name} ({item.size || "Free Size"}, {item.color || "Default"})
-                </span>
-                <span>
-                  ₹{item.price} × {item.qty || 1}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex justify-between mt-6">
+          <div className="flex flex-col sm:flex-row justify-between mt-6 gap-2">
             <button
               onClick={() => setStep(2)}
-              className="bg-gray-200 text-sm px-6 py-2 rounded-md"
+              className="bg-gray-200 text-sm px-6 py-2 rounded-md w-full sm:w-auto"
             >
               Back
             </button>
@@ -295,7 +435,7 @@ export default function CheckoutPage() {
               disabled={loading}
               className={`${
                 loading ? "bg-gray-400" : "bg-black"
-              } text-white text-sm px-6 py-2 rounded-md`}
+              } text-white text-sm px-6 py-2 rounded-md w-full sm:w-auto`}
             >
               {loading ? "Placing..." : "Place Order"}
             </button>

@@ -1,6 +1,6 @@
 const Product = require("../models/Product");
 
-// ✅ Add a new product (with variants and sizes)
+// ✅ Add a new product (with variants, sizes, category, subcategory inside product)
 exports.addProduct = async (req, res) => {
   try {
     const newProduct = new Product(req.body);
@@ -11,23 +11,31 @@ exports.addProduct = async (req, res) => {
   }
 };
 
-// 
-// ✅ Get all products (optionally filtered by category and/or subcategory)
+// ✅ Get all products (with optional filtering: category, subcategory, price range, search)
 exports.getAllProducts = async (req, res) => {
   try {
-    const { category, subcategory } = req.query;
+    const { category, subcategory, minPrice, maxPrice, search } = req.query;
     const filter = {};
 
     if (category) filter.category = category;
     if (subcategory) filter.subcategory = subcategory;
 
-    const products = await Product.find(filter);
+    if (minPrice || maxPrice) {
+      filter.price = {};
+      if (minPrice) filter.price.$gte = Number(minPrice);
+      if (maxPrice) filter.price.$lte = Number(maxPrice);
+    }
+
+    if (search) {
+      filter.title = { $regex: search, $options: "i" }; // case-insensitive search
+    }
+
+    const products = await Product.find(filter).sort({ createdAt: -1 });
     res.status(200).json(products);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
-
 
 // ✅ Get single product by ID
 exports.getProductById = async (req, res) => {
@@ -43,10 +51,22 @@ exports.getProductById = async (req, res) => {
 // ✅ Update product
 exports.updateProduct = async (req, res) => {
   try {
-    const updated = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updateData = { ...req.body };
+
+    // Remove empty strings
+    if (updateData.category?.trim() === "") delete updateData.category;
+    if (updateData.subcategory?.trim() === "") delete updateData.subcategory;
+
+    const updated = await Product.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
     if (!updated) return res.status(404).json({ message: "Product not found" });
     res.status(200).json({ message: "Product updated", product: updated });
   } catch (err) {
+    console.error("❌ Error updating product:", err);
     res.status(500).json({ message: err.message });
   }
 };

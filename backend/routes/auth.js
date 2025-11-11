@@ -26,6 +26,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
+
 // 🔑 Login (for both users & admins)
 router.post("/login", async (req, res) => {
   try {
@@ -43,12 +44,20 @@ router.post("/login", async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    // 🧠 Return token + user (without password)
-    const { password: _, ...userData } = user._doc;
-    res.status(200).json({ token, user: userData });
+    // ✅ Return only clean data
+    res.status(200).json({
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        isAdmin: user.isAdmin, // 👈 this ensures frontend sees the boolean
+      },
+    });
   } catch (err) {
     res.status(500).json({ message: "Login failed", error: err.message });
   }
 });
+
 
 module.exports = router;
