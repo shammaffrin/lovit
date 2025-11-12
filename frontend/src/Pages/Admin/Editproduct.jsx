@@ -53,7 +53,7 @@ const EditProduct = () => {
           mainImage: product.mainImage || "",
           variants: product.variants?.length
             ? product.variants.map((v) => ({
-                color: v.color || "",
+                 color: v.color || "Default",
                 price: v.price || "",
                 sizes: Array.isArray(v.sizes) ? v.sizes : [],
                 images: Array.isArray(v.images) ? v.images : [],
@@ -156,7 +156,7 @@ const EditProduct = () => {
     try {
       setLoading(true);
       const formattedVariants = formData.variants.map((v) => ({
-        color: v.color,
+         color: v.color || "Default",
         price: Number(v.price),
         sizes: Array.isArray(v.sizes)
           ? v.sizes.map((s) => ({ size: s.size?.trim(), stock: Number(s.stock) || 0 }))

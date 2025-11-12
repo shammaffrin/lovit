@@ -335,13 +335,15 @@ export default function CheckoutPage() {
               );
 
               const message = encodeURIComponent(
-                `Hello, I would like to place an order!\n\n🧾 *Order Details:*\n${orderPreview}\n\n💰 *Total:* ₹${total}\n📦 *Shipping Address:*\n${billing.name}\n${billing.address}\n${billing.city}, ${billing.state} - ${billing.zipCode}\n\nPlease confirm the order.`
+                `Hello, I would like to place an order!\n\n *Order Details:*\n${orderPreview} *Total:* ₹${total}\n *Shipping Address:*\n${billing.name}\n${billing.address}\n${billing.city}, ${billing.state} - ${billing.zipCode}\n\nPlease confirm the order.`
               );
 
               // Replace with your WhatsApp number (with country code, no + or spaces)
-              const phoneNumber = "917994560066"; // Example: India number
-              const whatsappURL = `https://wa.me/${phoneNumber}?text=${message}`;
-              window.open(whatsappURL, "_blank");
+             // ✅ Use the official API URL instead of wa.me
+const phoneNumber = "919544048559"; // No + or spaces
+const whatsappURL = `https://api.whatsapp.com/send?phone=${phoneNumber}&text=${message}`;
+window.open(whatsappURL, "_blank");
+
             }}
             className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm px-6 py-2 rounded-md transition w-full sm:w-auto"
           >

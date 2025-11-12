@@ -8,7 +8,7 @@ const SizeSchema = new mongoose.Schema({
 
 // Schema for variants
 const VariantSchema = new mongoose.Schema({
-  color: { type: String, required: [true, "Color is required"] },
+  color: { type: String, required: false },
   sizes: {
     type: [SizeSchema],
     validate: {

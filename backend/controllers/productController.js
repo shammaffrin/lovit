@@ -53,9 +53,28 @@ exports.updateProduct = async (req, res) => {
   try {
     const updateData = { ...req.body };
 
-    // Remove empty strings
+    // Clean up empty strings
     if (updateData.category?.trim() === "") delete updateData.category;
     if (updateData.subcategory?.trim() === "") delete updateData.subcategory;
+
+    // ✅ Sanitize variants and sizes before update
+    if (Array.isArray(updateData.variants)) {
+      updateData.variants = updateData.variants
+        .filter((v) => v.color && v.price) // remove incomplete variants
+        .map((v) => ({
+          color: v.color,
+          price: Number(v.price),
+          sizes: Array.isArray(v.sizes)
+            ? v.sizes
+                .filter((s) => s.size) // remove empty sizes
+                .map((s) => ({
+                  size: s.size.trim(),
+                  stock: Number(s.stock) || 0,
+                }))
+            : [],
+          images: Array.isArray(v.images) ? v.images : [],
+        }));
+    }
 
     const updated = await Product.findByIdAndUpdate(
       req.params.id,
@@ -63,13 +82,22 @@ exports.updateProduct = async (req, res) => {
       { new: true, runValidators: true }
     );
 
-    if (!updated) return res.status(404).json({ message: "Product not found" });
-    res.status(200).json({ message: "Product updated", product: updated });
+    if (!updated) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.status(200).json({ message: "✅ Product updated successfully", product: updated });
   } catch (err) {
     console.error("❌ Error updating product:", err);
-    res.status(500).json({ message: err.message });
+    res.status(400).json({
+      message: "Validation failed",
+      error: err.message,
+      details: err.errors || err,
+    });
   }
 };
+
+
 
 // ✅ Delete product
 exports.deleteProduct = async (req, res) => {

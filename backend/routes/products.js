@@ -27,7 +27,7 @@ router.post("/", verifyAdmin, async (req, res) => {
     }
 
     const formattedVariants = variants.map((v) => ({
-      color: v.color,
+      color: v.color || null,
       price: v.price,
       sizes: v.sizes?.length ? v.sizes : [],
       images: v.images?.length ? v.images : [],
@@ -99,18 +99,34 @@ router.get("/:id", async (req, res) => {
 /* =========================================================
    ✅ UPDATE PRODUCT (Admin)
    ========================================================= */
+/* =========================================================
+   ✅ UPDATE PRODUCT (Admin)
+   ========================================================= */
 router.put("/:id", verifyAdmin, async (req, res) => {
   try {
     const updateData = { ...req.body };
 
-    // Format variants if provided
-    if (updateData.variants) {
-      updateData.variants = updateData.variants.map((v) => ({
-        color: v.color,
-        price: v.price,
-        sizes: v.sizes?.length ? v.sizes : [],
-        images: v.images?.length ? v.images : [],
-      }));
+    // 🧹 Clean empty strings
+    if (updateData.category?.trim() === "") delete updateData.category;
+    if (updateData.subcategory?.trim() === "") delete updateData.subcategory;
+
+    // 🧠 Validate & sanitize variants before saving
+    if (Array.isArray(updateData.variants)) {
+      updateData.variants = updateData.variants
+        .filter((v) => v.color && v.price) // remove incomplete variants
+        .map((v) => ({
+          color: v.color.trim(),
+          price: Number(v.price),
+          sizes: Array.isArray(v.sizes)
+            ? v.sizes
+                .filter((s) => s.size) // remove empty sizes
+                .map((s) => ({
+                  size: s.size.trim(),
+                  stock: Number(s.stock) || 0,
+                }))
+            : [],
+          images: Array.isArray(v.images) ? v.images : [],
+        }));
     }
 
     const updatedProduct = await Product.findByIdAndUpdate(
@@ -119,7 +135,9 @@ router.put("/:id", verifyAdmin, async (req, res) => {
       { new: true, runValidators: true }
     );
 
-    if (!updatedProduct) return res.status(404).json({ message: "Product not found" });
+    if (!updatedProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
 
     res.status(200).json({
       message: "✅ Product updated successfully",
@@ -127,9 +145,14 @@ router.put("/:id", verifyAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Error updating product:", err);
-    res.status(500).json({ message: err.message });
+    res.status(400).json({
+      message: "Validation failed",
+      error: err.message,
+      details: err.errors || err,
+    });
   }
 });
+
 
 /* =========================================================
    ✅ DELETE PRODUCT (Admin)
