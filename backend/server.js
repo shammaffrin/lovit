@@ -11,7 +11,7 @@ const app = express();
 // ✅ CORS setup
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://lovit.in",
+    origin: process.env.CLIENT_URL || "https://lovit.in",
     credentials: true,
   })
 );
