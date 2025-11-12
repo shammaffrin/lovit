@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "http://localhost:5000/api", // make sure your backend URL is correct
+  baseURL: "https://lovit.vercel.app/api", // make sure your backend URL is correct
 });
 
 export const registerUser = (data) => API.post("/auth/register", data);

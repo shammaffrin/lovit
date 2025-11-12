@@ -1,9 +1,8 @@
 // src/api/wishlistapi.js
 import axios from "axios";
 
-// ✅ Use environment variable or fallback to localhost
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+  baseURL: import.meta.env.VITE_API_URL || "https://lovit.vercel.app/api",
 });
 
 // ✅ Get all wishlist items for a specific user
