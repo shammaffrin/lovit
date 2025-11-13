@@ -169,4 +169,27 @@ router.delete("/:id", verifyAdmin, async (req, res) => {
   }
 });
 
+/* =========================================================
+   🧩 GET RELATED PRODUCTS (same category)
+   ========================================================= */
+router.get("/related/:category/:productId", async (req, res) => {
+  try {
+    const { category, productId } = req.params;
+
+    // Find products from the same category but exclude the current one
+    const relatedProducts = await Product.find({
+      category,
+      _id: { $ne: productId },
+    })
+      .limit(6) // limit to 6 products
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(relatedProducts);
+  } catch (err) {
+    console.error("❌ Error fetching related products:", err);
+    res.status(500).json({ message: "Error fetching related products" });
+  }
+});
+
+
 module.exports = router;

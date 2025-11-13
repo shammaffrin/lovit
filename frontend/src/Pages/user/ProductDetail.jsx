@@ -6,7 +6,6 @@ import API from "../../api/axios";
 import { addToCart } from "../../api/cartapi";
 import { addToWishlist, getWishlist, removeFromWishlist } from "../../api/Wishlist";
 
-
 // --- Subcomponent: Color Selector ---
 const ColorSelector = ({ colors, selectedColor, onSelect }) => (
   <div>
@@ -52,6 +51,16 @@ const SizeSelector = ({ sizes, selectedSize, onSelect }) => (
   </div>
 );
 
+// --- Helper: Get image safely ---
+const getProductImage = (product, variant = null) => {
+  if (variant?.images?.length) {
+    const img = variant.images[0];
+    return typeof img === "string" ? img : img.url;
+  }
+  if (product.mainImage) return product.mainImage;
+  return "https://via.placeholder.com/400?text=No+Image";
+};
+
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -66,6 +75,7 @@ const ProductDetail = () => {
   const [inWishlist, setInWishlist] = useState(false);
   const [wishlistId, setWishlistId] = useState(null);
   const [inCart, setInCart] = useState(false);
+  const [relatedProducts, setRelatedProducts] = useState([]);
 
   const user = JSON.parse(localStorage.getItem("user"));
   const isLoggedIn = !!localStorage.getItem("token");
@@ -83,9 +93,9 @@ const ProductDetail = () => {
           setSelectedVariant(first);
           setSelectedColor(first.color);
           setSelectedSize(first.sizes?.[0]?.size || "");
-          setMainImage(first.images?.[0]?.url || first.images?.[0] || data.mainImage || "");
+          setMainImage(getProductImage(data, first));
         } else {
-          setMainImage(data.mainImage || data.image || "");
+          setMainImage(getProductImage(data));
         }
       } catch (err) {
         console.error("❌ Failed to fetch product:", err);
@@ -94,6 +104,28 @@ const ProductDetail = () => {
     fetchProduct();
   }, [id]);
 
+  // --- Fetch related products ---
+  useEffect(() => {
+    if (!product?._id || !product?.category) return;
+
+    const fetchRelated = async () => {
+      try {
+        const categoryName =
+          typeof product.category === "object"
+            ? product.category.name
+            : product.category;
+        const res = await API.get(
+          `/products/related/${categoryName}/${product._id}`
+        );
+        setRelatedProducts(res.data);
+      } catch (err) {
+        console.error("❌ Failed to fetch related products:", err);
+      }
+    };
+
+    fetchRelated();
+  }, [product?._id, product?.category]);
+
   // --- Fetch wishlist status ---
   useEffect(() => {
     if (!user?._id || !product?._id) return;
@@ -101,7 +133,9 @@ const ProductDetail = () => {
     const fetchWishlistStatus = async () => {
       try {
         const res = await getWishlist(user._id);
-        const existing = res.data.find((item) => item.productId === product._id);
+        const existing = res.data.find(
+          (item) => item.productId === product._id
+        );
 
         if (existing) {
           setInWishlist(true);
@@ -148,17 +182,16 @@ const ProductDetail = () => {
     setSelectedColor(color);
     setSelectedVariant(variant);
     setSelectedSize(variant?.sizes?.[0]?.size || "");
-    setMainImage(variant?.images?.[0]?.url || variant?.images?.[0] || product?.mainImage || product?.image);
+    setMainImage(getProductImage(product, variant));
   };
 
   const handleSizeSelect = (size) => setSelectedSize(size);
 
   const handleWishlistToggle = async () => {
     if (!isLoggedIn) {
-    navigate("/login", { state: { from: `/product/${id}` } }); // 👈 redirect to login page
-    return;
-  }
-
+      navigate("/login", { state: { from: `/product/${id}` } });
+      return;
+    }
 
     setAnimateHeart(true);
     setTimeout(() => setAnimateHeart(false), 300);
@@ -172,7 +205,7 @@ const ProductDetail = () => {
         const payload = {
           productId: product._id,
           title: product.title,
-          image: mainImage,
+          image: getProductImage(product, selectedVariant),
           price: selectedVariant?.price || product.price,
           color: selectedColor,
           size: selectedSize,
@@ -188,16 +221,18 @@ const ProductDetail = () => {
 
   const handleAddToCart = async () => {
     if (!isLoggedIn) {
-    navigate("/login", { state: { from: `/product/${id}` } }); // 👈 redirect to login page
-    return;
-  }
+      navigate("/login", { state: { from: `/product/${id}` } });
+      return;
+    }
 
     if (inCart) {
       navigate("/cart");
       return;
     }
-    if (!selectedVariant || !selectedSize) return alert("Please select color and size");
-    if (selectedStock < quantity) return alert(`Only ${selectedStock} item(s) available`);
+    if (!selectedVariant || !selectedSize)
+      return alert("Please select color and size");
+    if (selectedStock < quantity)
+      return alert(`Only ${selectedStock} item(s) available`);
 
     const payload = {
       productId: product._id,
@@ -207,7 +242,7 @@ const ProductDetail = () => {
       variant: {
         color: selectedVariant.color,
         size: selectedSize,
-        image: mainImage,
+        image: getProductImage(product, selectedVariant),
       },
     };
 
@@ -223,11 +258,13 @@ const ProductDetail = () => {
 
   const handleBuyNow = async () => {
     if (!isLoggedIn) {
-    navigate("/login", { state: { from: `/product/${id}` } }); // 👈 redirect to login page
-    return;
-  }
-    if (!selectedVariant || !selectedSize) return alert("Please select color and size");
-    if (selectedStock < quantity) return alert(`Only ${selectedStock} item(s) available`);
+      navigate("/login", { state: { from: `/product/${id}` } });
+      return;
+    }
+    if (!selectedVariant || !selectedSize)
+      return alert("Please select color and size");
+    if (selectedStock < quantity)
+      return alert(`Only ${selectedStock} item(s) available`);
 
     const payload = {
       productId: product._id,
@@ -237,7 +274,7 @@ const ProductDetail = () => {
       variant: {
         color: selectedVariant.color,
         size: selectedSize,
-        image: mainImage,
+        image: getProductImage(product, selectedVariant),
       },
     };
 
@@ -251,14 +288,23 @@ const ProductDetail = () => {
   };
 
   if (!product)
-    return <div className="text-center py-20 text-gray-500">Loading product...</div>;
+    return (
+      <div className="text-center py-20 text-gray-500">Loading product...</div>
+    );
 
-  // --- Safe access to category name ---
-  const categoryName = typeof product.category === "object" ? product.category?.name : product.category;
+  const categoryName =
+    typeof product.category === "object"
+      ? product.category?.name
+      : product.category;
 
   const colors = product.variants?.map((v) => v.color) || [];
-  const variantImages = selectedVariant?.images?.map((img) => (typeof img === "string" ? img : img.url)) || [];
-  const allImages = Array.from(new Set([product.mainImage, ...variantImages].filter(Boolean)));
+  const variantImages =
+    selectedVariant?.images?.map((img) =>
+      typeof img === "string" ? img : img.url
+    ) || [];
+  const allImages = Array.from(
+    new Set([product.mainImage, ...variantImages].filter(Boolean))
+  );
   const sizes = selectedVariant?.sizes?.map((s) => s.size) || [];
 
   return (
@@ -269,26 +315,47 @@ const ProductDetail = () => {
 
       <div className="grid md:grid-cols-2 gap-8">
         {/* Left - Images */}
-        <div>
-          <img
-            src={mainImage || "https://via.placeholder.com/400?text=No+Image"}
-            alt={product.title}
-            className="w-full h-[450px] object-cover rounded-lg"
-          />
-          <div className="flex gap-3 mt-4 flex-wrap">
-            {allImages.map((img, idx) => (
-              <img
-                key={idx}
-                src={img}
-                alt={`thumbnail-${idx}`}
-                onClick={() => setMainImage(img)}
-                className={`w-20 h-24 object-cover rounded-md border cursor-pointer hover:opacity-80 transition ${
-                  mainImage === img ? "border-gray-800" : "border-gray-200"
-                }`}
-              />
-            ))}
-          </div>
-        </div>
+        {/* Left - Images with Zoom */}
+<div>
+  <div
+    className="w-full h-[450px] overflow-hidden rounded-lg cursor-zoom-in relative"
+    onMouseMove={(e) => {
+      const img = e.currentTarget.querySelector("img");
+      const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+      const x = ((e.clientX - left) / width) * 100;
+      const y = ((e.clientY - top) / height) * 100;
+      img.style.transformOrigin = `${x}% ${y}%`;
+      img.style.transform = "scale(2)";
+    }}
+    onMouseLeave={(e) => {
+      const img = e.currentTarget.querySelector("img");
+      img.style.transformOrigin = "center";
+      img.style.transform = "scale(1)";
+    }}
+  >
+    <img
+      src={mainImage || "https://via.placeholder.com/400?text=No+Image"}
+      alt={product.title}
+      className="w-full h-full object-cover transition-transform duration-300"
+    />
+  </div>
+
+  {/* Thumbnails */}
+  <div className="flex gap-3 mt-4 flex-wrap">
+    {allImages.map((img, idx) => (
+      <img
+        key={idx}
+        src={img}
+        alt={`thumbnail-${idx}`}
+        onClick={() => setMainImage(img)}
+        className={`w-20 h-24 object-cover rounded-md border cursor-pointer hover:opacity-80 transition ${
+          mainImage === img ? "border-gray-800" : "border-gray-200"
+        }`}
+      />
+    ))}
+  </div>
+</div>
+
 
         {/* Right - Info */}
         <div className="space-y-5">
@@ -316,14 +383,26 @@ const ProductDetail = () => {
           </div>
 
           {colors.length > 0 && (
-            <ColorSelector colors={colors} selectedColor={selectedColor} onSelect={handleColorSelect} />
+            <ColorSelector
+              colors={colors}
+              selectedColor={selectedColor}
+              onSelect={handleColorSelect}
+            />
           )}
 
           {sizes.length > 0 && (
-            <SizeSelector sizes={sizes} selectedSize={selectedSize} onSelect={handleSizeSelect} />
+            <SizeSelector
+              sizes={sizes}
+              selectedSize={selectedSize}
+              onSelect={handleSizeSelect}
+            />
           )}
 
-          {isOutOfStock && <p className="text-red-500 font-medium mt-2">This variant is currently out of stock</p>}
+          {isOutOfStock && (
+            <p className="text-red-500 font-medium mt-2">
+              This variant is currently out of stock
+            </p>
+          )}
 
           <div className="flex flex-wrap items-center gap-4 mt-4">
             {/* Quantity */}
@@ -349,11 +428,19 @@ const ProductDetail = () => {
             <button
               onClick={handleWishlistToggle}
               className={`ml-2 border p-2 rounded-md flex items-center justify-center transition-all duration-300 ${
-                inWishlist ? "bg-pink-100 border-pink-400 text-pink-600" : "hover:bg-gray-100 text-gray-700"
+                inWishlist
+                  ? "bg-pink-100 border-pink-400 text-pink-600"
+                  : "hover:bg-gray-100 text-gray-700"
               }`}
             >
-              <FiHeart size={22} color={inWishlist ? "red" : "black"} className={`${animateHeart ? "pop-animate" : ""}`} />
-              <span className="ml-2 text-sm font-medium">{inWishlist ? "In Wishlist" : "Wishlist"}</span>
+              <FiHeart
+                size={22}
+                color={inWishlist ? "red" : "black"}
+                className={`${animateHeart ? "pop-animate" : ""}`}
+              />
+              <span className="ml-2 text-sm font-medium">
+                {inWishlist ? "In Wishlist" : "Wishlist"}
+              </span>
             </button>
 
             {/* Add to Cart */}
@@ -384,6 +471,41 @@ const ProductDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Related Products */}
+      {relatedProducts.length > 0 && (
+        <div className="mt-15">
+          <h3 className="text-3xl font-semibold mb-6 text-center text-gray-800">
+            Related Products
+          </h3>
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {relatedProducts.map((item) => (
+              <div
+                key={item._id}
+                onClick={() => navigate(`/product/${item._id}`)}
+                className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition cursor-pointer"
+              >
+                <img
+                  src={getProductImage(item)}
+                  alt={item.title}
+                  className="w-full h-60 object-cover"
+                />
+                <div className="p-4">
+                  <h4 className="text-gray-800 font-medium text-sm truncate">
+                    {item.title}
+                  </h4>
+                  <p className="text-gray-500 text-xs">
+                    {item.category?.name || item.category}
+                  </p>
+                  <p className="text-gray-900 font-semibold mt-1">
+                    ₹{item.variants?.[0]?.price ?? "N/A"}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

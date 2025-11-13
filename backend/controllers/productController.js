@@ -1,17 +1,19 @@
 const Product = require("../models/Product");
 
-// ✅ Add a new product (with variants, sizes, category, subcategory inside product)
+// ✅ Add a new product
 exports.addProduct = async (req, res) => {
   try {
     const newProduct = new Product(req.body);
     await newProduct.save();
-    res.status(201).json({ message: "Product added successfully", product: newProduct });
+    res
+      .status(201)
+      .json({ message: "Product added successfully", product: newProduct });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// ✅ Get all products (with optional filtering: category, subcategory, price range, search)
+// ✅ Get all products (filters: category, subcategory, price range, search)
 exports.getAllProducts = async (req, res) => {
   try {
     const { category, subcategory, minPrice, maxPrice, search } = req.query;
@@ -27,7 +29,7 @@ exports.getAllProducts = async (req, res) => {
     }
 
     if (search) {
-      filter.title = { $regex: search, $options: "i" }; // case-insensitive search
+      filter.title = { $regex: search, $options: "i" };
     }
 
     const products = await Product.find(filter).sort({ createdAt: -1 });
@@ -60,13 +62,13 @@ exports.updateProduct = async (req, res) => {
     // ✅ Sanitize variants and sizes before update
     if (Array.isArray(updateData.variants)) {
       updateData.variants = updateData.variants
-        .filter((v) => v.color && v.price) // remove incomplete variants
+        .filter((v) => v.color && v.price)
         .map((v) => ({
           color: v.color,
           price: Number(v.price),
           sizes: Array.isArray(v.sizes)
             ? v.sizes
-                .filter((s) => s.size) // remove empty sizes
+                .filter((s) => s.size)
                 .map((s) => ({
                   size: s.size.trim(),
                   stock: Number(s.stock) || 0,
@@ -86,7 +88,9 @@ exports.updateProduct = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    res.status(200).json({ message: "✅ Product updated successfully", product: updated });
+    res
+      .status(200)
+      .json({ message: "✅ Product updated successfully", product: updated });
   } catch (err) {
     console.error("❌ Error updating product:", err);
     res.status(400).json({
@@ -97,8 +101,6 @@ exports.updateProduct = async (req, res) => {
   }
 };
 
-
-
 // ✅ Delete product
 exports.deleteProduct = async (req, res) => {
   try {
@@ -107,5 +109,24 @@ exports.deleteProduct = async (req, res) => {
     res.status(200).json({ message: "Product deleted" });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+};
+
+// ✅ Get related products (same category)
+exports.getRelatedProducts = async (req, res) => {
+  try {
+    const { category, productId } = req.params;
+
+    const relatedProducts = await Product.find({
+      category,
+      _id: { $ne: productId },
+    })
+      .limit(6)
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(relatedProducts);
+  } catch (err) {
+    console.error("❌ Error fetching related products:", err);
+    res.status(500).json({ message: "Error fetching related products" });
   }
 };

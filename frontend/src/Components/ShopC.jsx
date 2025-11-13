@@ -211,7 +211,10 @@ const ShopC = () => {
                     <img src={image} alt={product.title} className="w-full h-80 object-cover rounded-lg group-hover:scale-105 transition-transform duration-300" />
                   </div>
                   <h3 className="text-sm font-medium text-justify mb-1">{product.title}</h3>
-                  <p className="text-xs text-gray-500">{getCategoryName(product.category)}{product.subcategory ? ` / ${product.subcategory}` : ""}</p>
+                  <p className="text-[18px] text-justify ">
+  ₹{product.variants?.[0]?.price ?? "N/A"}
+</p>
+
                   <div className="flex items-center space-x-3 mt-2 justify-center">
                     <button onClick={(e) => { e.stopPropagation(); handleWishlistToggle(product); }}
                       className={`border rounded-full p-2 flex items-center justify-center ${isInWishlist ? "bg-red-500 text-white border-red-500" : "border-gray-400 text-gray-700 hover:bg-gray-100"}`}>
