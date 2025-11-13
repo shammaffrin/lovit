@@ -5,6 +5,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import API from "../../api/axios";
 import { addToCart } from "../../api/cartapi";
 import { addToWishlist, getWishlist, removeFromWishlist } from "../../api/Wishlist";
+import { getProductById, getRelatedProducts } from "../api/productsapi";
+
 
 // --- Subcomponent: Color Selector ---
 const ColorSelector = ({ colors, selectedColor, onSelect }) => (
@@ -81,50 +83,48 @@ const ProductDetail = () => {
   const isLoggedIn = !!localStorage.getItem("token");
 
   // --- Fetch product ---
-  useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        const res = await API.get(`/products/${id}`);
-        const data = res.data;
-        setProduct(data);
+// --- Fetch product ---
+useEffect(() => {
+  const fetchProduct = async () => {
+    try {
+      const { data } = await getProductById(id);
+      setProduct(data);
 
-        if (data.variants?.length) {
-          const first = data.variants[0];
-          setSelectedVariant(first);
-          setSelectedColor(first.color);
-          setSelectedSize(first.sizes?.[0]?.size || "");
-          setMainImage(getProductImage(data, first));
-        } else {
-          setMainImage(getProductImage(data));
-        }
-      } catch (err) {
-        console.error("❌ Failed to fetch product:", err);
+      if (data.variants?.length) {
+        const first = data.variants[0];
+        setSelectedVariant(first);
+        setSelectedColor(first.color);
+        setSelectedSize(first.sizes?.[0]?.size || "");
+        setMainImage(getProductImage(data, first));
+      } else {
+        setMainImage(getProductImage(data));
       }
-    };
-    fetchProduct();
-  }, [id]);
+    } catch (err) {
+      console.error("❌ Failed to fetch product:", err);
+    }
+  };
+  fetchProduct();
+}, [id]);
 
-  // --- Fetch related products ---
-  useEffect(() => {
-    if (!product?._id || !product?.category) return;
+// --- Fetch related products ---
+useEffect(() => {
+  if (!product?._id || !product?.category) return;
 
-    const fetchRelated = async () => {
-      try {
-        const categoryName =
-          typeof product.category === "object"
-            ? product.category.name
-            : product.category;
-        const res = await API.get(
-          `/products/related/${categoryName}/${product._id}`
-        );
-        setRelatedProducts(res.data);
-      } catch (err) {
-        console.error("❌ Failed to fetch related products:", err);
-      }
-    };
+  const fetchRelated = async () => {
+    try {
+      const categoryName =
+        typeof product.category === "object"
+          ? product.category.name
+          : product.category;
 
-    fetchRelated();
-  }, [product?._id, product?.category]);
+      const { data } = await getRelatedProducts(categoryName, product._id);
+      setRelatedProducts(data);
+    } catch (err) {
+      console.error("❌ Failed to fetch related products:", err);
+    }
+  };
+  fetchRelated();
+}, [product?._id, product?.category]);
 
   // --- Fetch wishlist status ---
   useEffect(() => {

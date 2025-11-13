@@ -40,3 +40,7 @@ export const updateProduct = (id, data, config = {}) => API.put(`/products/${id}
    ✅ Delete product (Admin only)
    ========================================================= */
 export const deleteProduct = (id, config = {}) => API.delete(`/products/${id}`, config);
+
+
+export const getRelatedProducts = (category, productId) =>
+  API.get(`/products/related/${category}/${productId}`);
