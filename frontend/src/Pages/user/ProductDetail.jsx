@@ -5,7 +5,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import API from "../../api/axios";
 import { addToCart } from "../../api/cartapi";
 import { addToWishlist, getWishlist, removeFromWishlist } from "../../api/Wishlist";
-import { getProductById, getRelatedProducts } from "../api/productsapi";
+import { getProductById, getRelatedProducts } from "../../api/productsapi";
 
 
 // --- Subcomponent: Color Selector ---

@@ -303,57 +303,72 @@ export default function CheckoutPage() {
           </label>
 
           {/* ✅ WhatsApp Contact Option */}
-          <button
-            onClick={() => {
-              if (
-                !billing.name ||
-                !billing.address ||
-                !billing.city ||
-                !billing.state
-              ) {
-                alert(
-                  "Please fill billing details before contacting on WhatsApp!"
-                );
-                return;
-              }
+<button
+  onClick={() => {
+    if (
+      !billing.name ||
+      !billing.address ||
+      !billing.city ||
+      !billing.state
+    ) {
+      alert("Please fill billing details before contacting on WhatsApp!");
+      return;
+    }
 
-              // Prepare simplified order text
-              const orderPreview = items
-                .map(
-                  (item) =>
-                    `${item.title || item.name} ${item.sku} (${
-                      item.variant?.size || item.size || "Free Size"
-                    }, ${item.variant?.color || item.color || "Default"}) x${
-                      item.quantity || 1
-                    } - ₹${item.price * (item.quantity || 1)}`
-                )
-                .join("\n");
+    // Build order details (with SKU and image)
+    const orderPreview = items
+      .map((item) => {
+        const name = item.title || item.name || "Product";
+        const sku = item.sku ? `SKU: ${item.sku}` : "";
+        const size = item.variant?.size || item.size || "FREE SIZE";
+        const color = item.variant?.color || item.color || "Default";
+        const qty = item.quantity || 1;
+        const price = item.price * qty;
+        const image =
+          item.variant?.images?.[0] || item.mainImage || item.image || "";
 
-              const total = items.reduce(
-                (sum, i) => sum + (i.price || 0) * (i.quantity || 1),
-                0
-              );
+        return (
+          `${name} ${sku ? `(${sku})` : ""}\n` +
+          `${size}, ${color} x${qty} - ₹${price}\n` +
+          (image ? `${image}` : "")
+        );
+      })
+      .join("\n\n");
 
-              const message = encodeURIComponent(
-                `Hello, I would like to place an order!\n\n *Order Details:*\n${orderPreview} *Total:* ₹${total}\n *Shipping Address:*\n${billing.name}\n${billing.address}\n${billing.city}, ${billing.state} - ${billing.zipCode}\n\nPlease confirm the order.`
-              );
+    const total = items.reduce(
+      (sum, i) => sum + (i.price || 0) * (i.quantity || 1),
+      0
+    );
 
-              // Replace with your WhatsApp number (with country code, no + or spaces)
-             // ✅ Use the official API URL instead of wa.me
-const phoneNumber = "919544048559"; // No + or spaces
-const whatsappURL = `https://api.whatsapp.com/send?phone=${phoneNumber}&text=${message}`;
-window.open(whatsappURL, "_blank");
+    const message = encodeURIComponent(
+      `Hello, I would like to place an order!\n\n` +
+        `Order Details:\n${orderPreview}\n\n` +
+        `Total: ₹${total}\n\n` +
+        `Shipping Address:\n${billing.name}\n${billing.address}\n${billing.city} , ${billing.state} - ${billing.zipCode}\n\n` +
+        `Please confirm the order.`
+    );
 
-            }}
-            className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm px-6 py-2 rounded-md transition w-full sm:w-auto"
-          >
-            <img
-              src="https://cdn-icons-png.flaticon.com/512/733/733585.png"
-              alt="WhatsApp"
-              className="w-4 h-4"
-            />
-            Contact on WhatsApp
-          </button>
+    const phoneNumber = "917994560066"; // no + or spaces
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    const whatsappURL = isMobile
+      ? `whatsapp://send?phone=${phoneNumber}&text=${message}`
+      : `https://wa.me/${phoneNumber}?text=${message}`;
+
+    window.open(whatsappURL, "_blank");
+  }}
+  className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm px-6 py-2 rounded-md transition w-full sm:w-auto"
+>
+  <img
+    src="https://cdn-icons-png.flaticon.com/512/733/733585.png"
+    alt="WhatsApp"
+    className="w-4 h-4"
+  />
+  Contact on WhatsApp
+</button>
+
+
+
 
           {/* Navigation Buttons */}
           <div className="flex justify-between mt-5 flex-col sm:flex-row gap-2">
