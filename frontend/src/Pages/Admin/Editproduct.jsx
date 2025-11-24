@@ -152,6 +152,29 @@ const EditProduct = () => {
     setFormData((prev) => ({ ...prev, variants: updated }));
   };
 
+  const addVariant = () => {
+  setFormData((prev) => ({
+    ...prev,
+    variants: [
+      ...prev.variants,
+      {
+        color: "",
+        price: "",
+        sizes: [{ size: "", stock: 0 }],
+        images: []
+      }
+    ]
+  }));
+};
+
+const addSize = (variantIndex) => {
+  const updated = [...formData.variants];
+  updated[variantIndex].sizes.push({ size: "", stock: 0 });
+  setFormData({ ...formData, variants: updated });
+};
+
+
+
   const handleSave = async () => {
     try {
       setLoading(true);
@@ -269,6 +292,7 @@ const EditProduct = () => {
               onChange={(e) => handleVariantChange(i, "price", e.target.value)}
               className="border px-2 py-1 w-full mb-2 rounded"
             />
+            <button type="button" onClick={addVariant}>+ Add Color</button>
 
             {/* Sizes */}
             <div className="mb-3">
@@ -295,6 +319,7 @@ const EditProduct = () => {
                     }}
                     className="border px-2 py-1 rounded w-1/2"
                   />
+                  <button type="button" onClick={() => addSize(i)}>+ Add Size</button>
                 </div>
               ))}
             </div>

@@ -149,6 +149,13 @@ const ShopC = () => {
 
   const handleProductClick = product => navigate(`/product/${product._id}`, { state: { product } });
 
+  const isSoldOut = (product) => {
+  return product.variants?.every(v =>
+    v.sizes?.every(s => Number(s.stock) <= 0)
+  );
+};
+
+
   return (
     <div className="max-w-7xl mx-auto py-10 px-4 md:px-8">
       <h1 className="text-center font-semibold text-4xl mb-10">
@@ -207,9 +214,21 @@ const ShopC = () => {
 
               return (
                 <div key={product._id} className="text-center group cursor-pointer" onClick={() => handleProductClick(product)}>
-                  <div className="overflow-hidden rounded-lg shadow-sm mb-3">
-                    <img src={image} alt={product.title} className="w-full h-80 object-cover rounded-lg group-hover:scale-105 transition-transform duration-300" />
-                  </div>
+                  <div className="overflow-hidden rounded-lg shadow-sm mb-3 relative">
+  {/* SOLD OUT BADGE */}
+  {isSoldOut(product) && (
+    <span className="absolute top-2 left-2 bg-black text-white text-xl px-2 py-1 rounded">
+      SOLD OUT
+    </span>
+  )}
+
+  <img
+    src={image}
+    alt={product.title}
+    className="w-full h-80 object-cover rounded-lg group-hover:scale-105 transition-transform duration-300 opacity-100"
+  />
+</div>
+
                   <h3 className="text-sm font-medium text-justify mb-1">{product.title}</h3>
                   <p className="text-[18px] text-justify ">
   ₹{product.variants?.[0]?.price ?? "N/A"}
@@ -220,11 +239,26 @@ const ShopC = () => {
                       className={`border rounded-full p-2 flex items-center justify-center ${isInWishlist ? "bg-red-500 text-white border-red-500" : "border-gray-400 text-gray-700 hover:bg-gray-100"}`}>
                       {isInWishlist ? <FaHeart /> : <FaRegHeart />}
                     </button>
-                    {isInCart ? (
-                      <button disabled className="bg-gray-400 text-white text-sm font-medium px-4 py-2 rounded-lg cursor-not-allowed">Added to Cart</button>
-                    ) : (
-                      <button onClick={(e) => handleAddToCart(product, e)} className="bg-[#B68A6B] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#A27657]">Add to Cart</button>
-                    )}
+                    {isSoldOut(product) ? (
+  <button
+    disabled
+    className="bg-gray-500 text-white text-sm font-medium px-4 py-2 rounded-lg cursor-not-allowed"
+  >
+    Sold Out
+  </button>
+) : isInCart ? (
+  <button disabled className="bg-gray-400 text-white text-sm font-medium px-4 py-2 rounded-lg cursor-not-allowed">
+    Added to Cart
+  </button>
+) : (
+  <button
+    onClick={(e) => handleAddToCart(product, e)}
+    className="bg-[#B68A6B] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#A27657]"
+  >
+    Add to Cart
+  </button>
+)}
+
                   </div>
                 </div>
               );
