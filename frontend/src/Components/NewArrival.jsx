@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 const NewArrivalSection = () => {
   const navigate = useNavigate();
   return (
-    <section className="max-w-7xl mx-auto px-6 py-16 grid lg:grid-cols-2 gap-10 items-center bg-[#fffaf6]">
+    <section className="max-w-7xl mx-auto px-6 py-16 grid lg:grid-cols-2 gap-10 items-center ">
       {/* Left Side — Image Focus */}
       <div className="relative group">
         <img

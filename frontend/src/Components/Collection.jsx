@@ -26,7 +26,7 @@ const collections = [
 export default function FashionCollection() {
   const navigate = useNavigate();
   return (
-    <section className="bg-[#fffaf6] py-16 px-6">
+    <section className=" py-16 px-6">
       <h2
         className="text-3xl md:text-4xl font-semibold text-center mb-12"
         style={{ color: "#9c5621", fontFamily: "Kugile, serif" }}

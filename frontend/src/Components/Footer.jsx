@@ -1,5 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { FaPhoneAlt } from "react-icons/fa";
+import { IoIosMail } from "react-icons/io";
+import { IoLocation } from "react-icons/io5";
 
 const Footer = () => {
   return (
@@ -74,23 +77,44 @@ const Footer = () => {
         {/* Contact Us */}
         <div>
           <h2 className="font-semibold mb-4">Contact Us</h2>
-          <ul className="space-y-2 text-gray-300">
-            <li>
-    <a href="tel:+917994560066">+91 7994560066</a>
-  </li>
+         <ul className="space-y-2 text-gray-300">
+
+  {/* Phone */}
   <li>
-    <a href="mailto:info@lovit.in">info@lovit.in</a>
+    <a href="tel:+917994560066" className="flex items-center gap-2">
+      <FaPhoneAlt className="text-xs" />
+      +91 7994560066
+    </a>
   </li>
+
+  {/* Email */}
+  <li>
+    <a href="mailto:info@lovit.in" className="flex items-center gap-2">
+      <IoIosMail className="text-[15px]" />
+      info@lovit.in
+    </a>
+  </li>
+
+  {/* Location */}
   <li>
     <a
       href="https://www.google.com/maps/search/?api=1&query=1st+floor+City+Centre+building+Palakunnu+Kasaragod+Kerala+671318+India"
       target="_blank"
       rel="noopener noreferrer"
+      className="flex items-start gap-2"
     >
-      1st floor City Centre building, Palakunnu, pincode:671318, Kasaragod, Kerala, India
+      <IoLocation className="text-2xl" />
+      <span>
+        1st floor City Centre building, Palakunnu, pincode: 671318,
+        Kasaragod, Kerala, India
+      </span>
     </a>
   </li>
-          </ul>
+
+  
+
+</ul>
+
         </div>
       </div>
 

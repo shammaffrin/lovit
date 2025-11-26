@@ -6,6 +6,8 @@ import { getProducts } from "../api/productsapi";
 import { addToWishlist, removeFromWishlist, getWishlist } from "../api/Wishlist";
 import { addToCart, getCart } from "../api/cartapi";
 import { toast } from "react-toastify";
+import { useLocation } from "react-router-dom";
+
 
 const ShopC = () => {
   const [categories, setCategories] = useState([]);
@@ -25,6 +27,11 @@ const ShopC = () => {
     if (!cat) return "";
     return typeof cat === "string" ? cat : cat.name;
   };
+
+  const location = useLocation();
+const params = new URLSearchParams(location.search);
+const urlCategory = params.get("category");   // example: churidar
+
 
   // Fetch products and build category/subcategory map
   useEffect(() => {
@@ -64,6 +71,15 @@ const ShopC = () => {
 
     fetchProducts();
   }, []);
+
+  useEffect(() => {
+  if (urlCategory) {
+    const formatted = urlCategory.charAt(0).toUpperCase() + urlCategory.slice(1);
+    setSelectedCat(formatted);
+    setExpandedCategory(formatted);
+  }
+}, [urlCategory]);
+
 
   // Wishlist & Cart fetch
   useEffect(() => {
