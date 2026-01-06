@@ -1,0 +1,38 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Playfair:ital,opsz,wght@0,5..1200,300..900;1,5..1200,300..900&family=Quicksand:wght@300..700&display=swap');
+
+@import "tailwindcss";
+
+body {
+   font-family: "Playfair", serif;
+   
+}
+/* Global fade-in for all page content */
+/* Smooth scroll for anchor links */
+
+
+/* Slide + fade page effect */
+
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+
+.goog-te-gadget span {
+  display: none !important;
+}
+
+/* Hide scrollbar but keep scroll functionality */
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+
